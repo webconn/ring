@@ -1,0 +1,18 @@
+#Antares ignores
+*/antares
+*/images
+*/build
+*/kconfig
+*/.config.old
+*/lex.backup
+*/tmp
+
+*/include/generated
+*/include/arch
+*/include/config
+
+# Editors ignores
+*.swp
+.*.swp
+.*.swo
+tags

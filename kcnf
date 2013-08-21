@@ -1,0 +1,21 @@
+choice
+    prompt "Used RTC chip"
+
+    config RTC_DS1307
+    bool "DS1307"
+endchoice
+
+choice
+    prompt "Used display"
+
+    config DISPLAY_LCD_NOCYR
+    bool "LCD non-cyrillic"
+
+    config DISPLAY_OLED
+    bool "OLED cyrillic"
+endchoice
+
+
+config UART_BAUDRATE
+int "UART baudrate"
+default 19200
