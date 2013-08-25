@@ -227,7 +227,7 @@ uint8_t rtc_day(void)
     uint8_t day;
     DS1307Read(3, &day);
 
-    return day;
+    return day - 1;
 }
 
 uint8_t rtc_read(uint8_t addr)

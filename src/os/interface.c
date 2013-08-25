@@ -35,6 +35,7 @@ void toggle_timer(void)
     iflags.clear = 0;
 }
 
+uint8_t point = 0;
 void goto_menu(void)
 {
     iflags.clear = 0;
@@ -49,6 +50,9 @@ void TInterface_standby(void)
         // set buttons handlers
         TButtons_add_handler(BUT_OK, &goto_menu);
         TButtons_add_handler(BUT_NO, &toggle_timer);
+        TButtons_add_handler(BUT_BACK, (void *) 0);
+        TButtons_add_handler(BUT_FWD, (void *) 0);
+        point = 0;
         iflags.clear = 1;
     }
 
@@ -150,7 +154,6 @@ void TInterface_standby(void)
     
 }
 
-uint8_t point = 0;
 
 void goto_standby(void)
 {
@@ -300,7 +303,7 @@ void set_time(void)
     rtc_write(RTC_SEC, 0);
 
     // 7. calculate day
-    rtc_write(RTC_DAY, getday());
+    rtc_write(RTC_DAY, getday()+1);
 
     TScreen_unset_cursor();
     iflags.clear = 0;
@@ -354,6 +357,7 @@ void TInterface_set_time(void)
     line2[15] = ' ';
 
     TScreen_set_cursor(0x40 + 1 + 3*(addr>>1) + (addr & 1)); // math magic :)
+                                                             // allow to skip empty signs on the screen
 
 }
 
