@@ -11,13 +11,20 @@
 
 #include <os/interface.h>
 
-volatile uint8_t tt_signals[7][24][3];
-volatile uint8_t tt_programs[4][12];
+#define DAYS 6
+#define ENTRIES 24
+#define ENTRY_SIZE 3
+
+#define PROGRAMS 4
+#define PROGRAM_SIZE 12
+
+volatile uint8_t tt_signals[DAYS][ENTRIES][ENTRY_SIZE];
+volatile uint8_t tt_programs[PROGRAMS][PROGRAM_SIZE];
 volatile uint8_t tt_time[3];
 volatile uint8_t tt_el[2];
 
 volatile uint8_t day; // index of current day of the week
-volatile uint8_t signal = 22; // index of current signal in timetable
+volatile uint8_t signal = ENTRIES; // index of current signal in timetable
 
 void run_signal(void);
 
@@ -34,25 +41,26 @@ void TTimetable_init(void)
     DDRD |= 1<<6;
     // 1. Load timetable from EEPROM
     uint8_t a, b, c;
-    for(a=0; a!=7; a++)
+
+    for(a=0; a!=DAYS; a++)
     {
-        for(b=0; b!=22; b++)
+        for(b=0; b!=ENTRIES; b++)
         {
-            for(c=0; c!=3; c++)
+            for(c=0; c!=ENTRY_SIZE; c++)
             {
                 eeprom_busy_wait();
-                tt_signals[a][b][c] = eeprom_read_byte((uint8_t *) (a*66+b*3+c));
+                tt_signals[a][b][c] = eeprom_read_byte((uint8_t *) (a*ENTRY_SIZE*ENTRIES+b*ENTRY_SIZE+c));
             }
         }
     }
 
     // 2. Load signals from EEPROM
-    for(a=0; a!=4; a++)
+    for(a=0; a!=PROGRAMS; a++)
     {
-        for(b=0; b!=12; b++)
+        for(b=0; b!=PROGRAM_SIZE; b++)
         {
             eeprom_busy_wait();
-            tt_programs[a][b] = eeprom_read_byte((uint8_t *) (462+a*12+b));
+            tt_programs[a][b] = eeprom_read_byte((uint8_t *) (462+a*PROGRAM_SIZE+b));
         }
     }
 
@@ -62,23 +70,29 @@ void TTimetable_init(void)
     tt_time[2] = rtc_sec();
 
     day = rtc_day();
-   
-    // 4. Look for available signals
-    for(a=0; a!=22; a++)
-    {
-        if(tt_signals[day][a][0] == 255) break; // stop scan if there are no signals
 
-        if((tt_signals[day][a][0] > tt_time[0]) || (tt_signals[day][a][0] == tt_time[0] && tt_signals[day][a][1] > tt_time[1]) || (tt_signals[day][a][0] == tt_time[0] && tt_signals[day][a][1] == tt_time[1] && (tt_signals[day][a][2] & 0x3F) > tt_time[2])) // all conditions about time
+    // skip if sunday
+    if (day != 0)
+    {
+        uint8_t tt_day = day - 1;
+
+        // 4. Look for available signals
+        for(a=0; a!=ENTRIES; a++)
         {
-            signal = a;
-            break;
+            if(tt_signals[tt_day][a][0] == 255) break; // stop scan if there are no signals
+
+            if((tt_signals[tt_day][a][0] > tt_time[0]) || (tt_signals[tt_day][a][0] == tt_time[0] && tt_signals[tt_day][a][1] > tt_time[1]) || (tt_signals[tt_day][a][0] == tt_time[0] && tt_signals[tt_day][a][1] == tt_time[1] && (tt_signals[tt_day][a][2] & 0x3F) > tt_time[2])) // all conditions about time
+            {
+                signal = a;
+                break;
+            }
         }
     }
 
     TTimetable_task();
 }
 
-uint8_t _lday;
+uint8_t _lday = 255;
 
 void TTimetable_task(void)
 {
@@ -88,17 +102,22 @@ void TTimetable_task(void)
     tt_time[2] = rtc_sec();
 
     day = rtc_day();
-   
-    // 2. Compare it with timetable
-    if(signal != 22 && tt_signals[day][signal][0] != 255)
+    if (_lday == 255)
     {
-        if(tt_signals[day][signal][0] == tt_time[0] && tt_signals[day][signal][1] == tt_time[1] && (tt_signals[day][signal][2] & 0x3F) == tt_time[2])
+        _lday = day;
+    }
+
+    // 2. Compare it with timetable (and skip sunday)
+    if(day != 0 && signal != ENTRIES && tt_signals[day - 1][signal][0] != 255)
+    {
+        uint8_t tt_day = day - 1;
+        if(tt_signals[tt_day][signal][0] == tt_time[0] && tt_signals[tt_day][signal][1] == tt_time[1] && (tt_signals[tt_day][signal][2] & 0x3F) == tt_time[2])
         {
             run_signal();
             signal++;
         }
-        tt_el[0] = tt_signals[day][signal][0];
-        tt_el[1] = tt_signals[day][signal][1];
+        tt_el[0] = tt_signals[tt_day][signal][0];
+        tt_el[1] = tt_signals[tt_day][signal][1];
     }
     else
     {
@@ -144,7 +163,7 @@ void run_signal(void)
     _prog_index = 0;
     if(iflags.timer)
     {
-        _prog_num = ((tt_signals[day][signal][2] & 0xC0) >> 6);
+        _prog_num = ((tt_signals[day-1][signal][2] & 0xC0) >> 6);
         task_add(&_signal, 0);
     }
 }
